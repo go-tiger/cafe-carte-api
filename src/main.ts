@@ -12,6 +12,17 @@ async function bootstrap() {
 
   setupSwagger(app);
 
-  await app.listen(configService.get<number>('PORT') ?? 3000);
+  const PORT = configService.get<number>('PORT') ?? 3000;
+  await app.listen(PORT, '0.0.0.0');
+
+  const { networkInterfaces } = await import('os');
+  const nets = networkInterfaces();
+  const networkIp = Object.values(nets)
+    .flat()
+    .find((net) => net?.family === 'IPv4' && !net.internal)?.address;
+
+  console.log('\n🚀 Cafe Carte API');
+  console.log(` - Local:   http://localhost:${PORT}`);
+  console.log(` - Network: http://${networkIp}:${PORT}\n`);
 }
 bootstrap();
