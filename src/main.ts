@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { AppModule } from './app.module';
+import { AppModule } from './app/app.module';
 import { createCorsConfig } from './common/configs/cors.config';
 import { setupSwagger } from './common/configs/swagger.config';
 
