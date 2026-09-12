@@ -1,0 +1,24 @@
+services:
+  cafe-carte-api-green:
+    image: ghcr.io/go-tiger/cafe-carte-api:latest
+    container_name: cafe-carte-api-green
+    ports:
+      - "8031:8030"
+    network_mode: bridge
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Seoul
+    restart: unless-stopped
+
+  cafe-carte-api-blue:
+    image: ghcr.io/go-tiger/cafe-carte-api:latest
+    container_name: cafe-carte-api-blue
+    ports:
+      - "8032:8030"
+    network_mode: bridge
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Seoul
+    restart: unless-stopped
