@@ -23,8 +23,8 @@ interface CacheEntry {
 }
 
 @Injectable()
-export class ChzzkService {
-  private readonly logger = new Logger(ChzzkService.name);
+export class LiveService {
+  private readonly logger = new Logger(LiveService.name);
   private readonly cache = new Map<string, CacheEntry>();
 
   async getChannelStatus(
