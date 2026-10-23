@@ -49,6 +49,7 @@ jobs:
           cat <<EOF > .env
           PORT=${{ env.APP_PORT }}
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}
           EOF
 
       - name: Copy .env and docker-compose.yml to server
