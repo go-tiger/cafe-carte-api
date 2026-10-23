@@ -1,5 +1,8 @@
+export type CoverKind = 'cover' | 'short';
+
 export interface CoverVideo {
   videoId: string;
+  kind: CoverKind;
   title: string;
   channelTitle: string;
   memberId: string | null;

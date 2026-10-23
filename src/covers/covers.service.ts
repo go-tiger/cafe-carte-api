@@ -3,10 +3,16 @@ import { ConfigService } from '@nestjs/config';
 import { CoverList, CoverVideo } from '../common/interfaces';
 import {
   COVER_CHANNELS,
+  COVER_DESCRIPTION_PATTERN,
+  COVER_MAX_SEC,
+  COVERS_SINCE,
+  COVER_SHORT_MAX_SEC,
   COVER_TITLE_PATTERN,
   COVERS_CACHE_TTL_MS,
   COVERS_MAX_PAGES_PER_CHANNEL,
+  OFFICIAL_MEMBER_KEYWORDS,
   YOUTUBE_API_BASE,
+  type CoverChannel,
 } from '../common/constants';
 
 interface ChannelsResponse {
@@ -15,7 +21,13 @@ interface ChannelsResponse {
 
 interface PlaylistItemsResponse {
   nextPageToken?: string;
-  items?: { snippet: { title: string; resourceId: { videoId: string } } }[];
+  items?: {
+    snippet: {
+      title: string;
+      description: string;
+      resourceId: { videoId: string };
+    };
+  }[];
 }
 
 interface VideosResponse {
@@ -23,6 +35,7 @@ interface VideosResponse {
     id: string;
     snippet: {
       title: string;
+      description: string;
       channelTitle: string;
       publishedAt: string;
       thumbnails: Record<string, { url: string } | undefined>;
@@ -37,6 +50,22 @@ const parseDuration = (iso: string): number => {
   if (!m) return 0;
   const [, d, h, min, s] = m.map((v) => Number(v ?? 0));
   return d * 86400 + h * 3600 + min * 60 + s;
+};
+
+const findOfficialMember = ({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}): string | null => {
+  const inTitle = OFFICIAL_MEMBER_KEYWORDS.find((k) => k.pattern.test(title));
+  if (inTitle) return inTitle.memberId;
+  // 단체 커버 설명란에는 멤버 전원이 적혀 있어서 한 명만 나올 때만 지정
+  const inDescription = OFFICIAL_MEMBER_KEYWORDS.filter((k) =>
+    k.pattern.test(description),
+  );
+  return inDescription.length === 1 ? inDescription[0].memberId : null;
 };
 
 @Injectable()
@@ -70,9 +99,9 @@ export class CoversService {
 
     try {
       const perChannel = await Promise.all(
-        COVER_CHANNELS.map(async ({ handle, memberId }) => {
-          const ids = await this.fetchCoverIds(key, handle);
-          return this.fetchVideos(key, ids, memberId);
+        COVER_CHANNELS.map(async (channel) => {
+          const ids = await this.fetchCoverIds(key, channel);
+          return this.fetchVideos(key, ids, channel.memberId);
         }),
       );
       const items = perChannel
@@ -97,7 +126,10 @@ export class CoversService {
     return (await res.json()) as T;
   }
 
-  private async fetchCoverIds(key: string, handle: string): Promise<string[]> {
+  private async fetchCoverIds(
+    key: string,
+    { handle, extraTitlePattern }: CoverChannel,
+  ): Promise<string[]> {
     const channels = await this.get<ChannelsResponse>('channels', {
       part: 'contentDetails',
       forHandle: handle,
@@ -120,9 +152,12 @@ export class CoversService {
         ...(pageToken ? { pageToken } : {}),
         key,
       });
-      for (const item of list.items ?? []) {
-        if (COVER_TITLE_PATTERN.test(item.snippet.title))
-          ids.push(item.snippet.resourceId.videoId);
+      for (const { snippet } of list.items ?? []) {
+        const isCover =
+          COVER_TITLE_PATTERN.test(snippet.title) ||
+          COVER_DESCRIPTION_PATTERN.test(snippet.description) ||
+          (extraTitlePattern?.test(snippet.title) ?? false);
+        if (isCover) ids.push(snippet.resourceId.videoId);
       }
       pageToken = list.nextPageToken;
       if (!pageToken) break;
@@ -145,14 +180,19 @@ export class CoversService {
       for (const v of res.items ?? []) {
         if (!v.status.embeddable || v.status.privacyStatus !== 'public')
           continue;
+        const durationSec = parseDuration(v.contentDetails.duration);
+        if (durationSec > COVER_MAX_SEC) continue;
+        if (Date.parse(v.snippet.publishedAt) < Date.parse(COVERS_SINCE))
+          continue;
         const thumbs = v.snippet.thumbnails;
         videos.push({
           videoId: v.id,
+          kind: durationSec <= COVER_SHORT_MAX_SEC ? 'short' : 'cover',
           title: v.snippet.title,
           channelTitle: v.snippet.channelTitle,
-          memberId,
+          memberId: memberId ?? findOfficialMember(v.snippet),
           publishedAt: v.snippet.publishedAt,
-          durationSec: parseDuration(v.contentDetails.duration),
+          durationSec,
           thumbnailUrl:
             (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? '',
         });
