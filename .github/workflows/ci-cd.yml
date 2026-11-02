@@ -129,7 +129,7 @@ jobs:
 
             READY=false
             for i in $(seq 1 15); do
-              if docker exec ${SERVICE}-${NEW} sh -c "nc -z 127.0.0.1 $PORT"; then
+              if docker exec ${SERVICE}-${NEW} sh -c "wget -q -O /dev/null http://127.0.0.1:$PORT/"; then
                 READY=true
                 break
               fi
