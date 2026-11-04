@@ -4,6 +4,7 @@ import {
   BROWSER_USER_AGENT,
   CACHE_TTL_MS,
   CHZZK_API_BASE,
+  CHZZK_CHANNEL_IDS,
 } from '../common/constants';
 
 interface ChzzkChannelResponse {
@@ -30,6 +31,8 @@ export class LiveService {
   async getChannelStatus(
     channelId: string,
   ): Promise<ChzzkChannelStatus | null> {
+    if (!CHZZK_CHANNEL_IDS.includes(channelId)) return null;
+
     const cached = this.cache.get(channelId);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.data;
